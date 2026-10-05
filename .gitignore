@@ -1,12 +1,19 @@
-# Byte-compiled / optimized / DLL files
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
 *.so
 
-# Distribution / packaging
+# Python environments
+.env
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# Python packaging
 .Python
 build/
 develop-eggs/
@@ -20,23 +27,12 @@ parts/
 sdist/
 var/
 wheels/
-share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
 MANIFEST
 
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
+# Testing / coverage
 htmlcov/
 .tox/
 .nox/
@@ -46,27 +42,33 @@ htmlcov/
 nosetests.xml
 coverage.xml
 *.cover
-*.py,cover
 .hypothesis/
 .pytest_cache/
 cover/
+TEST*.xml
 
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+# PyInstaller
+*.manifest
+*.spec
 
-# IDEs and editors
+# Logs
+*.log
+pip-log.txt
+pip-delete-this-directory.txt
+
+# IDEs
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# OS generated files
+# Node
+node_modules/
+
+# Build / distribution
+target/
+
+# OS files
 .DS_Store
 .DS_Store?
 ._*
@@ -74,3 +76,18 @@ venv.bak/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Large media
+*.mp4
+*.tiff
+*.avi
+*.flv
+*.mov
+*.wmv
+
+# Executables / packages
+*.class
+*.jar
+*.exe
+*.war
+*.app

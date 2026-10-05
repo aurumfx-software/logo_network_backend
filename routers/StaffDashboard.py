@@ -24,8 +24,7 @@ def get_dashboard_summary(
     staff_summary = {
         "id": current_staff.id,
         "staff_id": current_staff.staff_id,
-        "name": current_staff.name,
-        "district": current_staff.district
+        "name": current_staff.name
     }
 
     # 2. Businesses and summary stats

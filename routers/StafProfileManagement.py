@@ -9,6 +9,10 @@ from utils.password import verify_password, hash_password
 
 router = APIRouter(prefix="/staff", tags=["FieldStaff - Profile"])
 
+@router.get("/profile", response_model=StaffResponse)
+def get_profile(current_staff: Staff = Depends(get_current_staff)):
+    return current_staff
+
 @router.put("/profile")
 def update_profile(
     update_data: StaffProfileUpdate,
@@ -54,8 +58,6 @@ def update_profile(
         current_staff.name = update_data.name
     if update_data.address is not None:
         current_staff.address = update_data.address
-    if update_data.district is not None:
-        current_staff.district = update_data.district
         
     db.commit()
     db.refresh(current_staff)

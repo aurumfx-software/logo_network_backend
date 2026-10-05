@@ -6,7 +6,6 @@ class StaffSummary(BaseModel):
     id: int
     staff_id: str
     name: str
-    district: str
 
 class DashboardSummaryStats(BaseModel):
     total_businesses: int

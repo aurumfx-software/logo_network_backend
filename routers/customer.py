@@ -10,12 +10,17 @@ router = APIRouter(prefix="/customer", tags=["Customer API - Public TO GET  BUSS
 
 @router.get("/businesses", response_model=CustomerBusinessResponse)
 def get_customer_businesses(
+    state: Optional[str] = None,
     district: Optional[str] = None,
     location: Optional[str] = None,
     search: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     query = db.query(Business)
+
+    if state:
+        state_filter = f"%{state}%"
+        query = query.filter(Business.state.ilike(state_filter))
 
     if district:
         district_filter = f"%{district}%"

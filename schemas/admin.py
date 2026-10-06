@@ -14,6 +14,7 @@ class StaffAdminResponse(BaseModel):
     status: str
     created_at: datetime
     businesses: Optional[List[BusinessResponse]] = []
+    total_businesses: Optional[int] = 0
 
     class Config:
         from_attributes = True
@@ -21,6 +22,13 @@ class StaffAdminResponse(BaseModel):
 class StaffListResponse(BaseModel):
     staff: List[StaffAdminResponse]
     total: int
+
+class AdminStaffProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    password: Optional[str] = None
 
 class StaffStatusUpdateRequest(BaseModel):
     status: str

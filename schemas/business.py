@@ -4,7 +4,7 @@ from datetime import datetime
 
 class BusinessResponse(BaseModel):
     id: int
-    staff_id: Optional[int] = None
+    staff_id: Optional[str] = None
     owner_name: str
     owner_phone: str
     alternate_phone: Optional[str] = None
@@ -25,3 +25,7 @@ class BusinessResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+
+

@@ -53,7 +53,7 @@ def create_business(
         image_url = upload_business_image(image.file, unique_filename, image.content_type)
 
     new_business = Business(
-        staff_id=current_staff.id,
+        staff_id=current_staff.staff_id,
         owner_name=owner_name,
         owner_phone=owner_phone,
         alternate_phone=alternate_phone,
@@ -83,7 +83,7 @@ def get_all_businesses(
     db: Session = Depends(get_db),
     current_staff: Staff = Depends(get_current_staff)
 ):
-    businesses = db.query(Business).filter(Business.staff_id == current_staff.id).all()
+    businesses = db.query(Business).filter(Business.staff_id == current_staff.staff_id).all()
     return businesses
 
 # get bussiness by id API
@@ -95,7 +95,7 @@ def get_business(
 ):
     business = db.query(Business).filter(
         Business.id == id,
-        Business.staff_id == current_staff.id
+        Business.staff_id == current_staff.staff_id
     ).first()
     if not business:
         raise HTTPException(status_code=404, detail="Business not found")
@@ -126,7 +126,7 @@ def update_business(
 ):
     business = db.query(Business).filter(
         Business.id == id,
-        Business.staff_id == current_staff.id
+        Business.staff_id == current_staff.staff_id
     ).first()
     if not business:
         raise HTTPException(status_code=404, detail="Business not found")
@@ -181,7 +181,7 @@ def delete_business(
 ):
     business = db.query(Business).filter(
         Business.id == id,
-        Business.staff_id == current_staff.id
+        Business.staff_id == current_staff.staff_id
     ).first()
     if not business:
         raise HTTPException(status_code=404, detail="Business not found")

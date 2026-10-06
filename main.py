@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from database import get_db, engine, Base
 import database_models
-from routers import staffAuth, StaffBussinessManagement, adminAuth, AdminStaffManagement, AdminBussninessManagement
+from routers import staffAuth, StaffBussinessManagement, adminAuth, AdminStaffManagement, AdminBussninessManagement, AdminStaffProfileManagement
 
 database_models.Base.metadata.create_all(bind=engine)
 
@@ -23,6 +23,7 @@ app.include_router(staffAuth.router)
 app.include_router(adminAuth.router)
 app.include_router(AdminStaffManagement.router)
 app.include_router(AdminBussninessManagement.router)
+app.include_router(AdminStaffProfileManagement.router)
 
 from routers import AdminDashboard
 app.include_router(AdminDashboard.router)

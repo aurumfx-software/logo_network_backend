@@ -9,43 +9,6 @@ from utils.jwt import create_access_token
 
 router = APIRouter(prefix="/staff-auth", tags=["FieldStaff - Authentication"])
 
-def generate_staff_id(db: Session) -> str:
-    while True:
-        random_num = random.randint(100, 99999)
-        new_id = f"STAFF-{random_num}"
-        if not db.query(Staff).filter(Staff.staff_id == new_id).first():
-            return new_id
-
-
-# staff registration API
-@router.post("/register")
-def register_staff(request: StaffRegisterRequest, db: Session = Depends(get_db)):
-    if db.query(Staff).filter(Staff.email == request.email).first():
-        raise HTTPException(status_code=400, detail="Email already registered")
-    
-    if db.query(Staff).filter(Staff.phone == request.phone).first():
-        raise HTTPException(status_code=400, detail="Phone number already registered")
-
-    staff_id = generate_staff_id(db)
-    
-    new_staff = Staff(
-        staff_id=staff_id,
-        name=request.name,
-        email=request.email,
-        password_hash=hash_password(request.password),
-        phone=request.phone,
-        address=request.address
-    )
-    
-    db.add(new_staff)
-    db.commit()
-    db.refresh(new_staff)
-    
-    return {
-        "message": "Staff registered successfully",
-        "staff": StaffResponse.model_validate(new_staff)
-    }
-
 
 # staff login API
 @router.post("/login")

@@ -7,8 +7,10 @@ from database import get_db
 from database_models import Admin, Staff, Business
 from utils.dependencies import get_current_admin
 from utils.spaces import upload_business_image, delete_business_image
-from schemas.admin import StaffAdminResponse, StaffListResponse, StaffStatusUpdateRequest, StaffStatusUpdateResponse, BusinessListResponse
+from schemas.admin import StaffAdminResponse, StaffListResponse, StaffStatusUpdateRequest, StaffStatusUpdateResponse, BusinessListResponse, AdminStaffProfileUpdate
 from schemas.business import BusinessResponse
+from utils.password import hash_password
+from schemas.staffAuth import StaffRegisterRequest, StaffResponse
 
 router = APIRouter(prefix="/admin")
 
@@ -20,13 +22,51 @@ def admin_get_staff(db: Session = Depends(get_db), admin: Admin = Depends(get_cu
     staff_list = db.query(Staff).all()
     return {"staff": staff_list, "total": len(staff_list)}
 
-@router.get("/staff/{id}", response_model=StaffAdminResponse, tags=["Admin Staff Management"])
-def admin_get_one_staff(id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
-    staff = db.query(Staff).filter(Staff.id == id).first()
+def generate_staff_id(db: Session) -> str:
+    last_staff = db.query(Staff).order_by(Staff.id.desc()).first()
+    current_num = last_staff.id if last_staff else 0
+    
+    while True:
+        current_num += 1
+        new_id = f"staff-{current_num:02d}"
+        if not db.query(Staff).filter(Staff.staff_id == new_id).first():
+            return new_id
+
+@router.post("/staff/register", tags=["Admin Staff Management"])
+def admin_register_staff(request: StaffRegisterRequest, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+    if db.query(Staff).filter(Staff.email == request.email).first():
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    if db.query(Staff).filter(Staff.phone == request.phone).first():
+        raise HTTPException(status_code=400, detail="Phone number already registered")
+
+    staff_id = generate_staff_id(db)
+    
+    new_staff = Staff(
+        staff_id=staff_id,
+        name=request.name,
+        email=request.email,
+        password_hash=hash_password(request.password),
+        phone=request.phone,
+        address=request.address
+    )
+    
+    db.add(new_staff)
+    db.commit()
+    db.refresh(new_staff)
+    
+    return {
+        "message": "Staff registered successfully",
+        "staff": StaffResponse.model_validate(new_staff)
+    }
+
+@router.get("/staff/search/{staff_id}", response_model=StaffAdminResponse, tags=["Admin Staff Management"])
+def admin_search_staff_by_id(staff_id: str, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+    staff = db.query(Staff).filter(Staff.staff_id == staff_id).first()
     if not staff:
         raise HTTPException(status_code=404, detail="Staff not found")
         
-    businesses = db.query(Business).filter(Business.staff_id == staff.id).all()
+    businesses = db.query(Business).filter(Business.staff_id == staff.staff_id).all()
     
     return {
         "id": staff.id,
@@ -38,7 +78,30 @@ def admin_get_one_staff(id: int, db: Session = Depends(get_db), admin: Admin = D
         "role": staff.role,
         "status": staff.status,
         "created_at": staff.created_at,
-        "businesses": businesses
+        "businesses": businesses,
+        "total_businesses": len(businesses)
+    }
+
+@router.get("/staff/{id}", response_model=StaffAdminResponse, tags=["Admin Staff Management"])
+def admin_get_one_staff(id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+    staff = db.query(Staff).filter(Staff.id == id).first()
+    if not staff:
+        raise HTTPException(status_code=404, detail="Staff not found")
+        
+    businesses = db.query(Business).filter(Business.staff_id == staff.staff_id).all()
+    
+    return {
+        "id": staff.id,
+        "staff_id": staff.staff_id,
+        "name": staff.name,
+        "email": staff.email,
+        "phone": staff.phone,
+        "address": staff.address,
+        "role": staff.role,
+        "status": staff.status,
+        "created_at": staff.created_at,
+        "businesses": businesses,
+        "total_businesses": len(businesses)
     }
 
 @router.patch("/staff/{id}/status", response_model=StaffStatusUpdateResponse, tags=["Admin Staff Management"])

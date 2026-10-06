@@ -21,7 +21,7 @@ class Business(Base):
     __tablename__ = "businesses"
 
     id = Column(Integer, primary_key=True, index=True)
-    staff_id = Column(Integer, index=True, nullable=True)
+    staff_id = Column(String, index=True, nullable=True)
     
     owner_name = Column(String, nullable=False)
     owner_phone = Column(String, nullable=False)

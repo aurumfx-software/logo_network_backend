@@ -19,7 +19,7 @@ MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
 @router.post("/businesses", response_model=BusinessResponse, tags=["Admin Business Management"])
 def admin_create_business(
-    staff_id: Optional[int] = Form(None),
+    staff_id: Optional[str] = Form(None),
     owner_name: str = Form(...),
     owner_phone: str = Form(...),
     alternate_phone: Optional[str] = Form(None),
@@ -39,7 +39,7 @@ def admin_create_business(
     admin: Admin = Depends(get_current_admin)
 ):
     if staff_id is not None:
-        staff = db.query(Staff).filter(Staff.id == staff_id).first()
+        staff = db.query(Staff).filter(Staff.staff_id == staff_id).first()
         if not staff:
             raise HTTPException(status_code=404, detail="Staff not found")
 
@@ -84,7 +84,7 @@ def admin_get_businesses(
     state: Optional[str] = None,
     city: Optional[str] = None,
     category: Optional[str] = None,
-    staff_id: Optional[int] = None,
+    staff_id: Optional[str] = None,
     search: Optional[str] = None,
     db: Session = Depends(get_db),
     admin: Admin = Depends(get_current_admin)
@@ -117,7 +117,7 @@ def admin_get_one_business(id: int, db: Session = Depends(get_db), admin: Admin 
 @router.put("/businesses/{id}", response_model=BusinessResponse, tags=["Admin Business Management"])
 def admin_update_business(
     id: int,
-    staff_id: Optional[int] = Form(None),
+    staff_id: Optional[str] = Form(None),
     owner_name: Optional[str] = Form(None),
     owner_phone: Optional[str] = Form(None),
     alternate_phone: Optional[str] = Form(None),
@@ -141,7 +141,7 @@ def admin_update_business(
         raise HTTPException(status_code=404, detail="Business not found")
         
     if staff_id is not None:
-        staff = db.query(Staff).filter(Staff.id == staff_id).first()
+        staff = db.query(Staff).filter(Staff.staff_id == staff_id).first()
         if not staff:
             raise HTTPException(status_code=404, detail="Staff not found")
         business.staff_id = staff_id

@@ -18,6 +18,8 @@ class AdminLoginResponse(BaseModel):
     token_type: str
     admin: AdminResponse
 
-class ChangePasswordRequest(BaseModel):
-    old_password: str
+class AdminProfileUpdateRequest(BaseModel):
+    new_email: EmailStr
+    confirm_email: EmailStr
     new_password: str
+    confirm_password: str

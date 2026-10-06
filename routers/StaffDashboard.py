@@ -29,7 +29,7 @@ def get_dashboard_summary(
 
     # 2. Businesses and summary stats
     all_businesses = db.query(Business).filter(
-        Business.staff_id == current_staff.id
+        Business.staff_id == current_staff.staff_id
     ).order_by(Business.created_at.desc()).all()
 
     total_businesses = len(all_businesses)

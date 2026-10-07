@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from database import Base
 
 class Staff(Base):
@@ -53,3 +54,30 @@ class Admin(Base):
     role = Column(String, default="admin", nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class Conversation(Base):
+    __tablename__ = "conversations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    field_staff_id = Column(Integer, ForeignKey("staff.id"), index=True, nullable=False)
+    admin_id = Column(Integer, ForeignKey("admins.id"), index=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    field_staff = relationship("Staff", foreign_keys=[field_staff_id])
+    admin = relationship("Admin", foreign_keys=[admin_id])
+
+class Message(Base):
+    __tablename__ = "messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    conversation_id = Column(Integer, ForeignKey("conversations.id"), index=True, nullable=False)
+    sender_id = Column(Integer, index=True, nullable=False)
+    sender_role = Column(String, nullable=False)
+    receiver_id = Column(Integer, index=True, nullable=False)
+    receiver_role = Column(String, nullable=False)
+    message = Column(Text, nullable=False)
+    is_read = Column(Boolean, default=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    conversation = relationship("Conversation", backref="messages")

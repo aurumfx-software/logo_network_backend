@@ -1,5 +1,6 @@
 import os
 import uuid
+import secrets
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
 from sqlalchemy.orm import Session
@@ -49,12 +50,9 @@ def admin_get_staff(db: Session = Depends(get_db), admin: Admin = Depends(get_cu
     return {"staff": result, "total": len(result)}
 
 def generate_staff_id(db: Session) -> str:
-    last_staff = db.query(Staff).order_by(Staff.id.desc()).first()
-    current_num = last_staff.id if last_staff else 0
-    
     while True:
-        current_num += 1
-        new_id = f"staff-{current_num:02d}"
+        rand_digits = f"{secrets.randbelow(1000):03d}"
+        new_id = f"SF{rand_digits}"
         if not db.query(Staff).filter(Staff.staff_id == new_id).first():
             return new_id
 
@@ -66,25 +64,37 @@ def admin_register_staff(request: StaffRegisterRequest, db: Session = Depends(ge
     if db.query(Staff).filter(Staff.phone == request.phone).first():
         raise HTTPException(status_code=400, detail="Phone number already registered")
 
-    staff_id = generate_staff_id(db)
+    from sqlalchemy.exc import IntegrityError
     
-    new_staff = Staff(
-        staff_id=staff_id,
-        name=request.name,
-        email=request.email,
-        password_hash=hash_password(request.password),
-        phone=request.phone,
-        address=request.address
-    )
-    
-    db.add(new_staff)
-    db.commit()
-    db.refresh(new_staff)
-    
-    return {
-        "message": "Staff registered successfully",
-        "staff": StaffResponse.model_validate(new_staff)
-    }
+    max_retries = 5
+    for attempt in range(max_retries):
+        try:
+            staff_id = generate_staff_id(db)
+            
+            new_staff = Staff(
+                staff_id=staff_id,
+                name=request.name,
+                email=request.email,
+                password_hash=hash_password(request.password),
+                phone=request.phone,
+                address=request.address
+            )
+            
+            db.add(new_staff)
+            db.commit()
+            db.refresh(new_staff)
+            
+            return {
+                "message": "Field Staff created successfully",
+                "staff_id": new_staff.staff_id,
+                "user_id": new_staff.id,
+                "name": new_staff.name,
+                "email": new_staff.email
+            }
+        except IntegrityError:
+            db.rollback()
+            if attempt == max_retries - 1:
+                raise HTTPException(status_code=500, detail="Failed to generate a unique staff ID. Please try again.")
 
 @router.get("/staff/search/{staff_id}", response_model=StaffAdminResponse, tags=["Admin Staff Management"])
 def admin_search_staff_by_id(staff_id: str, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):

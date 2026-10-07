@@ -45,6 +45,9 @@ app.include_router(StaffDashboard.router)
 from routers import customer
 app.include_router(customer.router)
 
+# Messages router
+from routers import messages
+app.include_router(messages.router)
 
 
 @app.get("/")

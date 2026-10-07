@@ -2,6 +2,7 @@ import os
 import random
 import uuid
 from typing import Optional, List
+from pydantic import EmailStr
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from database import get_db
@@ -23,7 +24,7 @@ def create_business(
     owner_name: str = Form(...),
     owner_phone: str = Form(...),
     alternate_phone: Optional[str] = Form(None),
-    email: Optional[str] = Form(None),
+    email: Optional[EmailStr] = Form(None),
     address: str = Form(...),
     state: str = Form(...),
     district: str = Form(...),
@@ -71,11 +72,14 @@ def create_business(
         year_established=year_established
     )
 
-    db.add(new_business)
-    db.commit()
-    db.refresh(new_business)
-
-    return new_business
+    try:
+        db.add(new_business)
+        db.commit()
+        db.refresh(new_business)
+        return new_business
+    except Exception:
+        db.rollback()
+        raise
 
 # get all bussinesses API
 @router.get("/", response_model=List[BusinessResponse])
@@ -109,7 +113,7 @@ def update_business(
     owner_name: str = Form(...),
     owner_phone: str = Form(...),
     alternate_phone: Optional[str] = Form(None),
-    email: Optional[str] = Form(None),
+    email: Optional[EmailStr] = Form(None),
     address: str = Form(...),
     state: str = Form(...),
     district: str = Form(...),
@@ -167,10 +171,13 @@ def update_business(
             
         business.image = new_image_url
 
-    db.commit()
-    db.refresh(business)
-
-    return business
+    try:
+        db.commit()
+        db.refresh(business)
+        return business
+    except Exception:
+        db.rollback()
+        raise
 
 # delete bussiness API
 @router.delete("/{id}")

@@ -1,6 +1,7 @@
 import os
 import uuid
 from typing import Optional, List
+from pydantic import EmailStr
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
 from sqlalchemy.orm import Session
 from database import get_db
@@ -23,7 +24,7 @@ def admin_create_business(
     owner_name: str = Form(...),
     owner_phone: str = Form(...),
     alternate_phone: Optional[str] = Form(None),
-    email: Optional[str] = Form(None),
+    email: Optional[EmailStr] = Form(None),
     address: str = Form(...),
     state: str = Form(...),
     district: str = Form(...),
@@ -73,10 +74,14 @@ def admin_create_business(
         business_description=business_description,
         year_established=year_established
     )
-    db.add(new_business)
-    db.commit()
-    db.refresh(new_business)
-    return new_business
+    try:
+        db.add(new_business)
+        db.commit()
+        db.refresh(new_business)
+        return new_business
+    except Exception:
+        db.rollback()
+        raise
 
 @router.get("/businesses", response_model=BusinessListResponse, tags=["Admin Business Management"])
 def admin_get_businesses(
@@ -121,7 +126,7 @@ def admin_update_business(
     owner_name: Optional[str] = Form(None),
     owner_phone: Optional[str] = Form(None),
     alternate_phone: Optional[str] = Form(None),
-    email: Optional[str] = Form(None),
+    email: Optional[EmailStr] = Form(None),
     address: Optional[str] = Form(None),
     state: Optional[str] = Form(None),
     district: Optional[str] = Form(None),
@@ -175,9 +180,13 @@ def admin_update_business(
             delete_business_image(business.image)
         business.image = new_image_url
         
-    db.commit()
-    db.refresh(business)
-    return business
+    try:
+        db.commit()
+        db.refresh(business)
+        return business
+    except Exception:
+        db.rollback()
+        raise
 
 @router.delete("/businesses/{id}", tags=["Admin Business Management"])
 def admin_delete_business(id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):

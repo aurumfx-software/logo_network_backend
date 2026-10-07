@@ -18,8 +18,10 @@ class AdminLoginResponse(BaseModel):
     token_type: str
     admin: AdminResponse
 
+from typing import Optional
+
 class AdminProfileUpdateRequest(BaseModel):
-    new_email: EmailStr
-    confirm_email: EmailStr
-    new_password: str
-    confirm_password: str
+    new_email: Optional[EmailStr] = None
+    confirm_email: Optional[EmailStr] = None
+    new_password: Optional[str] = None
+    confirm_password: Optional[str] = None

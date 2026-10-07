@@ -20,7 +20,33 @@ MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 @router.get("/staff", response_model=StaffListResponse, tags=["Admin Staff Management"])
 def admin_get_staff(db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
     staff_list = db.query(Staff).all()
-    return {"staff": staff_list, "total": len(staff_list)}
+    businesses = db.query(Business).all()
+    
+    business_map = {}
+    for b in businesses:
+        if b.staff_id:
+            if b.staff_id not in business_map:
+                business_map[b.staff_id] = []
+            business_map[b.staff_id].append(b)
+            
+    result = []
+    for staff in staff_list:
+        staff_businesses = business_map.get(staff.staff_id, [])
+        result.append({
+            "id": staff.id,
+            "staff_id": staff.staff_id,
+            "name": staff.name,
+            "email": staff.email,
+            "phone": staff.phone,
+            "address": staff.address,
+            "role": staff.role,
+            "status": staff.status,
+            "created_at": staff.created_at,
+            "businesses": staff_businesses,
+            "total_businesses": len(staff_businesses)
+        })
+        
+    return {"staff": result, "total": len(result)}
 
 def generate_staff_id(db: Session) -> str:
     last_staff = db.query(Staff).order_by(Staff.id.desc()).first()

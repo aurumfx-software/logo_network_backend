@@ -46,6 +46,29 @@ def upload_business_image(file_obj, filename: str, content_type: str) -> str:
     except Exception as e:
         raise Exception(f"Failed to upload image: {str(e)}")
 
+def upload_staff_image(file_obj, filename: str, content_type: str) -> str:
+    key = f"staff_kyc/{filename}"
+    try:
+        s3_client.upload_fileobj(
+            file_obj,
+            SPACES_BUCKET,
+            key,
+            ExtraArgs={
+                "ACL": "public-read",
+                "ContentType": content_type
+            }
+        )
+        
+        # Construct the final public URL
+        if SPACES_BUCKET in SPACES_ENDPOINT:
+            return f"{SPACES_ENDPOINT}/{key}"
+        else:
+            scheme, domain = SPACES_ENDPOINT.split("://")
+            return f"{scheme}://{SPACES_BUCKET}.{domain}/{key}"
+            
+    except Exception as e:
+        raise Exception(f"Failed to upload image: {str(e)}")
+
 def delete_business_image(image_url: str):
     if not image_url:
         return

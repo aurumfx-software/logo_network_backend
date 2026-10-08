@@ -19,7 +19,7 @@ def update_admin_profile(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="At least one field must be provided for update."
         )
-
+ 
     if request.new_email or request.confirm_email:
         if not (request.new_email and request.confirm_email):
             raise HTTPException(

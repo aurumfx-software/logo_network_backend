@@ -16,6 +16,14 @@ class Staff(Base):
     role = Column(String, default="staff")
     status = Column(String, default="Active", nullable=False)
     is_active = Column(Boolean, default=True)
+    
+    # KYC Details
+    aadhaar_number = Column(String, nullable=True)
+    aadhaar_front_image = Column(String, nullable=True)
+    aadhaar_back_image = Column(String, nullable=True)
+    state = Column(String, nullable=True)
+    district = Column(String, nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class Business(Base):

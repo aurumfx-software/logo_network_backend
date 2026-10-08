@@ -12,6 +12,11 @@ class StaffAdminResponse(BaseModel):
     address: str
     role: str
     status: str
+    aadhaar_number: Optional[str] = None
+    aadhaar_front_image: Optional[str] = None
+    aadhaar_back_image: Optional[str] = None
+    state: Optional[str] = None
+    district: Optional[str] = None
     created_at: datetime
     businesses: Optional[List[BusinessResponse]] = []
     total_businesses: Optional[int] = 0

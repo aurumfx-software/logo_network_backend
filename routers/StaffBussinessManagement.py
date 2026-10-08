@@ -21,8 +21,8 @@ MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
 @router.post("/", response_model=BusinessResponse)
 def create_business(
-    owner_name: str = Form(...),
-    owner_phone: str = Form(...),
+    owner_name: Optional[str] = Form(None),
+    owner_phone: Optional[str] = Form(None),
     alternate_phone: Optional[str] = Form(None),
     email: Optional[EmailStr] = Form(None),
     address: str = Form(...),
@@ -31,10 +31,11 @@ def create_business(
     city: str = Form(...),
     pincode: str = Form(...),
     business_name: str = Form(...),
-    business_type: str = Form(...),
+    business_type: Optional[str] = Form(None),
     business_category: str = Form(...),
     business_description: Optional[str] = Form(None),
     year_established: Optional[int] = Form(None),
+    location_link: Optional[str] = Form(None),
     image: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
     current_staff: Staff = Depends(get_current_staff)
@@ -69,7 +70,8 @@ def create_business(
         business_type=business_type,
         business_category=business_category,
         business_description=business_description,
-        year_established=year_established
+        year_established=year_established,
+        location_link=location_link
     )
 
     try:
@@ -110,20 +112,21 @@ def get_business(
 @router.put("/{id}", response_model=BusinessResponse)
 def update_business(
     id: int,
-    owner_name: str = Form(...),
-    owner_phone: str = Form(...),
+    owner_name: Optional[str] = Form(None),
+    owner_phone: Optional[str] = Form(None),
     alternate_phone: Optional[str] = Form(None),
     email: Optional[EmailStr] = Form(None),
-    address: str = Form(...),
-    state: str = Form(...),
-    district: str = Form(...),
-    city: str = Form(...),
-    pincode: str = Form(...),
-    business_name: str = Form(...),
-    business_type: str = Form(...),
-    business_category: str = Form(...),
+    address: Optional[str] = Form(None),
+    state: Optional[str] = Form(None),
+    district: Optional[str] = Form(None),
+    city: Optional[str] = Form(None),
+    pincode: Optional[str] = Form(None),
+    business_name: Optional[str] = Form(None),
+    business_type: Optional[str] = Form(None),
+    business_category: Optional[str] = Form(None),
     business_description: Optional[str] = Form(None),
     year_established: Optional[int] = Form(None),
+    location_link: Optional[str] = Form(None),
     image: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
     current_staff: Staff = Depends(get_current_staff)
@@ -135,20 +138,21 @@ def update_business(
     if not business:
         raise HTTPException(status_code=404, detail="Business not found")
 
-    business.owner_name = owner_name
-    business.owner_phone = owner_phone
-    business.alternate_phone = alternate_phone
-    business.email = email
-    business.address = address
-    business.state = state
-    business.district = district
-    business.city = city
-    business.pincode = pincode
-    business.business_name = business_name
-    business.business_type = business_type
-    business.business_category = business_category
-    business.business_description = business_description
-    business.year_established = year_established
+    if owner_name is not None: business.owner_name = owner_name
+    if owner_phone is not None: business.owner_phone = owner_phone
+    if alternate_phone is not None: business.alternate_phone = alternate_phone
+    if email is not None: business.email = email
+    if address is not None: business.address = address
+    if state is not None: business.state = state
+    if district is not None: business.district = district
+    if city is not None: business.city = city
+    if pincode is not None: business.pincode = pincode
+    if business_name is not None: business.business_name = business_name
+    if business_type is not None: business.business_type = business_type
+    if business_category is not None: business.business_category = business_category
+    if business_description is not None: business.business_description = business_description
+    if year_established is not None: business.year_established = year_established
+    if location_link is not None: business.location_link = location_link
 
     if image:
         file_extension = os.path.splitext(image.filename)[1].lower()

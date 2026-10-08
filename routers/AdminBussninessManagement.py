@@ -21,8 +21,8 @@ MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 @router.post("/businesses", response_model=BusinessResponse, tags=["Admin Business Management"])
 def admin_create_business(
     staff_id: Optional[str] = Form(None),
-    owner_name: str = Form(...),
-    owner_phone: str = Form(...),
+    owner_name: Optional[str] = Form(None),
+    owner_phone: Optional[str] = Form(None),
     alternate_phone: Optional[str] = Form(None),
     email: Optional[EmailStr] = Form(None),
     address: str = Form(...),
@@ -31,10 +31,11 @@ def admin_create_business(
     city: str = Form(...),
     pincode: str = Form(...),
     business_name: str = Form(...),
-    business_type: str = Form(...),
+    business_type: Optional[str] = Form(None),
     business_category: str = Form(...),
     business_description: Optional[str] = Form(None),
     year_established: Optional[int] = Form(None),
+    location_link: Optional[str] = Form(None),
     image: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
     admin: Admin = Depends(get_current_admin)
@@ -72,7 +73,8 @@ def admin_create_business(
         business_type=business_type,
         business_category=business_category,
         business_description=business_description,
-        year_established=year_established
+        year_established=year_established,
+        location_link=location_link
     )
     try:
         db.add(new_business)
@@ -137,6 +139,7 @@ def admin_update_business(
     business_category: Optional[str] = Form(None),
     business_description: Optional[str] = Form(None),
     year_established: Optional[int] = Form(None),
+    location_link: Optional[str] = Form(None),
     image: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
     admin: Admin = Depends(get_current_admin)
@@ -165,6 +168,7 @@ def admin_update_business(
     if business_category is not None: business.business_category = business_category
     if business_description is not None: business.business_description = business_description
     if year_established is not None: business.year_established = year_established
+    if location_link is not None: business.location_link = location_link
     
     if image:
         file_extension = os.path.splitext(image.filename)[1].lower()

@@ -27,6 +27,7 @@ app.include_router(AdminStaffProfileManagement.router)
 
 from routers import AdminStaffReport
 app.include_router(AdminStaffReport.router)
+app.include_router(AdminStaffReport.no_date_router)
 
 from routers import AdminDashboard
 app.include_router(AdminDashboard.router)

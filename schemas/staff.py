@@ -8,3 +8,7 @@ class StaffProfileUpdate(BaseModel):
     address: Optional[str] = None
     current_password: Optional[str] = None
     new_password: Optional[str] = None
+
+class StaffAddressEmailUpdate(BaseModel):
+    email: Optional[EmailStr] = None
+    address: Optional[str] = None

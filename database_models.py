@@ -32,8 +32,8 @@ class Business(Base):
     id = Column(Integer, primary_key=True, index=True)
     staff_id = Column(String, index=True, nullable=True)
     
-    owner_name = Column(String, nullable=False)
-    owner_phone = Column(String, nullable=False)
+    owner_name = Column(String, nullable=True)
+    owner_phone = Column(String, nullable=True)
     alternate_phone = Column(String, nullable=True)
     email = Column(String, nullable=True)
     address = Column(String, nullable=False)
@@ -44,10 +44,11 @@ class Business(Base):
     
     business_name = Column(String, nullable=False)
     image = Column(String, nullable=True)
-    business_type = Column(String, nullable=False)
+    business_type = Column(String, nullable=True)
     business_category = Column(String, nullable=False)
     business_description = Column(String, nullable=True)
     year_established = Column(Integer, nullable=True)
+    location_link = Column(String, nullable=True)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

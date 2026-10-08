@@ -25,6 +25,9 @@ app.include_router(AdminStaffManagement.router)
 app.include_router(AdminBussninessManagement.router)
 app.include_router(AdminStaffProfileManagement.router)
 
+from routers import AdminStaffReport
+app.include_router(AdminStaffReport.router)
+
 from routers import AdminDashboard
 app.include_router(AdminDashboard.router)
 

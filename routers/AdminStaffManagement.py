@@ -249,6 +249,7 @@ def admin_print_staff(db: Session = Depends(get_db), admin: Admin = Depends(get_
     rows_html = ""
     for idx, s in enumerate(staff_list, 1):
         guardian = s.guardian_contact_number if s.guardian_contact_number else "—"
+        aadhaar = s.aadhaar_number if s.aadhaar_number else "—"
         state = s.state if s.state else "—"
         district = s.district if s.district else "—"
         
@@ -260,6 +261,7 @@ def admin_print_staff(db: Session = Depends(get_db), admin: Admin = Depends(get_
             <td>{s.email}</td>
             <td>{s.phone}</td>
             <td>{guardian}</td>
+            <td>{aadhaar}</td>
             <td>{state}</td>
             <td>{district}</td>
         </tr>
@@ -281,7 +283,7 @@ def admin_print_staff(db: Session = Depends(get_db), admin: Admin = Depends(get_
                 margin: 0;
                 padding: 10mm;
                 color: #000;
-                font-size: 12px;
+                font-size: 11px;
             }}
             .header {{
                 text-align: center;
@@ -347,6 +349,7 @@ def admin_print_staff(db: Session = Depends(get_db), admin: Admin = Depends(get_
                     <th>Email</th>
                     <th>Phone</th>
                     <th>Guardian Contact Number</th>
+                    <th>Aadhaar Number</th>
                     <th>State</th>
                     <th>District</th>
                 </tr>

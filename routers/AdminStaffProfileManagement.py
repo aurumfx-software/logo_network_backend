@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Form, UploadFile, File
 from sqlalchemy.orm import Session
 from database import get_db
-from database_models import Admin, Staff
+from database_models import Admin, Staff, KYCSubmission
 from utils.dependencies import get_current_admin
 from utils.password import hash_password
 from schemas.staffAuth import StaffResponse
@@ -79,19 +79,36 @@ def admin_update_staff_profile(
     if password is not None and password != "":
         staff.password_hash = hash_password(password)
 
+    uploaded_front = False
     if aadhaar_front_image and aadhaar_front_image.filename:
         ext = os.path.splitext(aadhaar_front_image.filename)[1].lower()
         if ext not in ALLOWED_EXTENSIONS:
             raise HTTPException(status_code=422, detail="Invalid front image format")
         filename = f"{uuid.uuid4().hex}_front{ext}"
         staff.aadhaar_front_image = upload_staff_image(aadhaar_front_image.file, filename, aadhaar_front_image.content_type)
+        uploaded_front = True
 
+    uploaded_back = False
     if aadhaar_back_image and aadhaar_back_image.filename:
         ext = os.path.splitext(aadhaar_back_image.filename)[1].lower()
         if ext not in ALLOWED_EXTENSIONS:
             raise HTTPException(status_code=422, detail="Invalid back image format")
         filename = f"{uuid.uuid4().hex}_back{ext}"
         staff.aadhaar_back_image = upload_staff_image(aadhaar_back_image.file, filename, aadhaar_back_image.content_type)
+        uploaded_back = True
+        
+    if uploaded_front and uploaded_back and staff.kyc_status == "PENDING":
+        staff.kyc_status = "APPROVED"
+        from sqlalchemy.sql import func
+        new_kyc = KYCSubmission(
+            staff_id=staff.id,
+            aadhaar_front_image=staff.aadhaar_front_image,
+            aadhaar_back_image=staff.aadhaar_back_image,
+            status="APPROVED",
+            reviewer_id=admin.id,
+            reviewed_at=func.now()
+        )
+        db.add(new_kyc)
         
     db.commit()
     db.refresh(staff)

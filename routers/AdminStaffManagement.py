@@ -129,6 +129,11 @@ def admin_register_staff(
         try:
             staff_id = generate_staff_id(db)
             
+            if front_url and back_url:
+                staff_kyc_status = "APPROVED"
+            else:
+                staff_kyc_status = "PENDING"
+                
             new_staff = Staff(
                 staff_id=staff_id,
                 name=name,
@@ -142,14 +147,26 @@ def admin_register_staff(
                 aadhaar_back_image=back_url,
                 state=state,
                 district=district,
-                kyc_status="PENDING" if (front_url or back_url) else None
+                kyc_status=staff_kyc_status
             )
             
             db.add(new_staff)
             db.commit()
             db.refresh(new_staff)
             
-            if front_url or back_url:
+            if staff_kyc_status == "APPROVED":
+                from sqlalchemy.sql import func
+                new_kyc = KYCSubmission(
+                    staff_id=new_staff.id,
+                    aadhaar_front_image=front_url,
+                    aadhaar_back_image=back_url,
+                    status="APPROVED",
+                    reviewer_id=admin.id,
+                    reviewed_at=func.now()
+                )
+                db.add(new_kyc)
+                db.commit()
+            elif front_url or back_url:
                 new_kyc = KYCSubmission(
                     staff_id=new_staff.id,
                     aadhaar_front_image=front_url,

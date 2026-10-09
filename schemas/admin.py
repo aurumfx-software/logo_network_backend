@@ -12,6 +12,7 @@ class StaffAdminResponse(BaseModel):
     address: str
     role: str
     status: str
+    guardian_contact_number: Optional[str] = None
     aadhaar_number: Optional[str] = None
     aadhaar_front_image: Optional[str] = None
     aadhaar_back_image: Optional[str] = None

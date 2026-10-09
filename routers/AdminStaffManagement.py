@@ -3,9 +3,10 @@ import uuid
 import secrets
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
+from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from database import get_db
-from database_models import Admin, Staff, Business
+from database_models import Admin, Staff, Business, KYCSubmission
 from utils.dependencies import get_current_admin
 from utils.spaces import upload_business_image, delete_business_image, upload_staff_image
 from schemas.admin import StaffAdminResponse, StaffListResponse, StaffStatusUpdateRequest, StaffStatusUpdateResponse, BusinessListResponse, AdminStaffProfileUpdate
@@ -39,6 +40,7 @@ def admin_get_staff(db: Session = Depends(get_db), admin: Admin = Depends(get_cu
             "name": staff.name,
             "email": staff.email,
             "phone": staff.phone,
+            "guardian_contact_number": staff.guardian_contact_number,
             "address": staff.address,
             "role": staff.role,
             "status": staff.status,
@@ -67,15 +69,20 @@ def admin_register_staff(
     email: str = Form(...),
     password: str = Form(...),
     phone: str = Form(...),
+    guardian_contact_number: str = Form(...),
     address: str = Form(...),
     aadhaar_number: str = Form(...),
     state: str = Form(...),
     district: str = Form(...),
-    aadhaar_front_image: UploadFile = File(...),
-    aadhaar_back_image: UploadFile = File(...),
+    aadhaar_front_image: Optional[UploadFile] = File(None),
+    aadhaar_back_image: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db), 
     admin: Admin = Depends(get_current_admin)
 ):
+    # Validate Name
+    if any(char.islower() for char in name if char.isalpha()):
+        raise HTTPException(status_code=422, detail="Field Staff name must be entered in uppercase letters.")
+
     # Validate Aadhaar Number
     normalized_aadhaar = aadhaar_number.replace(" ", "").replace("-", "")
     if not normalized_aadhaar.isdigit() or len(normalized_aadhaar) != 12:
@@ -93,21 +100,27 @@ def admin_register_staff(
     if db.query(Staff).filter(Staff.phone == phone).first():
         raise HTTPException(status_code=400, detail="Phone number already registered")
 
-    # Upload images
-    ext_front = os.path.splitext(aadhaar_front_image.filename)[1].lower()
-    ext_back = os.path.splitext(aadhaar_back_image.filename)[1].lower()
-    
-    if ext_front not in ALLOWED_EXTENSIONS or ext_back not in ALLOWED_EXTENSIONS:
-        raise HTTPException(status_code=422, detail="Invalid image format")
-        
-    front_filename = f"{uuid.uuid4().hex}_front{ext_front}"
-    back_filename = f"{uuid.uuid4().hex}_back{ext_back}"
-    
-    try:
-        front_url = upload_staff_image(aadhaar_front_image.file, front_filename, aadhaar_front_image.content_type)
-        back_url = upload_staff_image(aadhaar_back_image.file, back_filename, aadhaar_back_image.content_type)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    front_url = None
+    if aadhaar_front_image and aadhaar_front_image.filename:
+        ext_front = os.path.splitext(aadhaar_front_image.filename)[1].lower()
+        if ext_front not in ALLOWED_EXTENSIONS:
+            raise HTTPException(status_code=422, detail="Invalid front image format")
+        front_filename = f"{uuid.uuid4().hex}_front{ext_front}"
+        try:
+            front_url = upload_staff_image(aadhaar_front_image.file, front_filename, aadhaar_front_image.content_type)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    back_url = None
+    if aadhaar_back_image and aadhaar_back_image.filename:
+        ext_back = os.path.splitext(aadhaar_back_image.filename)[1].lower()
+        if ext_back not in ALLOWED_EXTENSIONS:
+            raise HTTPException(status_code=422, detail="Invalid back image format")
+        back_filename = f"{uuid.uuid4().hex}_back{ext_back}"
+        try:
+            back_url = upload_staff_image(aadhaar_back_image.file, back_filename, aadhaar_back_image.content_type)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
 
     from sqlalchemy.exc import IntegrityError
     
@@ -122,17 +135,30 @@ def admin_register_staff(
                 email=email,
                 password_hash=hash_password(password),
                 phone=phone,
+                guardian_contact_number=guardian_contact_number,
                 address=address,
                 aadhaar_number=normalized_aadhaar,
                 aadhaar_front_image=front_url,
                 aadhaar_back_image=back_url,
                 state=state,
-                district=district
+                district=district,
+                kyc_status="PENDING" if (front_url or back_url) else None
             )
             
             db.add(new_staff)
             db.commit()
             db.refresh(new_staff)
+            
+            if front_url or back_url:
+                new_kyc = KYCSubmission(
+                    staff_id=new_staff.id,
+                    aadhaar_front_image=front_url,
+                    aadhaar_back_image=back_url,
+                    status="PENDING"
+                )
+                db.add(new_kyc)
+                db.commit()
+            
             
             return {
                 "message": "Field Staff created successfully",
@@ -140,6 +166,8 @@ def admin_register_staff(
                 "user_id": new_staff.id,
                 "name": new_staff.name,
                 "email": new_staff.email,
+                "phone": new_staff.phone,
+                "guardian_contact_number": new_staff.guardian_contact_number,
                 "aadhaar_number": new_staff.aadhaar_number,
                 "aadhaar_front_image": new_staff.aadhaar_front_image,
                 "aadhaar_back_image": new_staff.aadhaar_back_image,
@@ -165,6 +193,7 @@ def admin_search_staff_by_id(staff_id: str, db: Session = Depends(get_db), admin
         "name": staff.name,
         "email": staff.email,
         "phone": staff.phone,
+        "guardian_contact_number": staff.guardian_contact_number,
         "address": staff.address,
         "role": staff.role,
         "status": staff.status,
@@ -177,6 +206,142 @@ def admin_search_staff_by_id(staff_id: str, db: Session = Depends(get_db), admin
         "businesses": businesses,
         "total_businesses": len(businesses)
     }
+
+@router.get("/staff/print", tags=["Admin Staff Management"])
+def admin_print_staff(db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+    staff_list = db.query(Staff).filter(Staff.role == "staff").order_by(Staff.staff_id.asc()).all()
+    
+    if not staff_list:
+        html_content = """
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <title>Field Staff Details Report</title>
+            <style>
+                body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+            </style>
+        </head>
+        <body>
+            <h2>No Field Staff records found.</h2>
+        </body>
+        </html>
+        """
+        return HTMLResponse(content=html_content)
+
+    rows_html = ""
+    for idx, s in enumerate(staff_list, 1):
+        guardian = s.guardian_contact_number if s.guardian_contact_number else "—"
+        state = s.state if s.state else "—"
+        district = s.district if s.district else "—"
+        
+        rows_html += f"""
+        <tr>
+            <td>{idx}</td>
+            <td>{s.staff_id}</td>
+            <td>{s.name}</td>
+            <td>{s.email}</td>
+            <td>{s.phone}</td>
+            <td>{guardian}</td>
+            <td>{state}</td>
+            <td>{district}</td>
+        </tr>
+        """
+
+    html_content = f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Field Staff Details Report</title>
+        <style>
+            @page {{
+                size: A4 landscape;
+                margin: 10mm;
+            }}
+            body {{
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 10mm;
+                color: #000;
+                font-size: 12px;
+            }}
+            .header {{
+                text-align: center;
+                margin-bottom: 20px;
+            }}
+            .header h1 {{
+                margin: 0;
+                font-size: 20px;
+                text-transform: uppercase;
+            }}
+            .data-table {{
+                width: 100%;
+                border-collapse: collapse;
+            }}
+            .data-table th, .data-table td {{
+                border: 1px solid #000;
+                padding: 8px 6px;
+                text-align: left;
+            }}
+            .data-table th {{
+                background-color: #f2f2f2;
+                font-weight: bold;
+            }}
+            thead {{
+                display: table-header-group;
+            }}
+            tr {{
+                page-break-inside: avoid;
+            }}
+            .print-btn {{
+                display: block;
+                margin: 0 auto 20px auto;
+                padding: 10px 20px;
+                font-size: 14px;
+                cursor: pointer;
+            }}
+            @media print {{
+                body {{
+                    padding: 0;
+                }}
+                .print-btn {{
+                    display: none;
+                }}
+                body {{
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                }}
+            }}
+        </style>
+    </head>
+    <body>
+        <button onclick="window.print()" class="print-btn">Print Report</button>
+        <div class="header">
+            <h1>FIELD STAFF DETAILS REPORT</h1>
+        </div>
+        
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Staff ID</th>
+                    <th>Staff Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Guardian Contact Number</th>
+                    <th>State</th>
+                    <th>District</th>
+                </tr>
+            </thead>
+            <tbody>
+                {rows_html}
+            </tbody>
+        </table>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html_content)
 
 @router.get("/staff/{id}", response_model=StaffAdminResponse, tags=["Admin Staff Management"])
 def admin_get_one_staff(id: int, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
@@ -192,6 +357,7 @@ def admin_get_one_staff(id: int, db: Session = Depends(get_db), admin: Admin = D
         "name": staff.name,
         "email": staff.email,
         "phone": staff.phone,
+        "guardian_contact_number": staff.guardian_contact_number,
         "address": staff.address,
         "role": staff.role,
         "status": staff.status,
@@ -222,5 +388,3 @@ def admin_update_staff_status(id: int, request: StaffStatusUpdateRequest, db: Se
         "message": f"Staff {'activated' if request.status == 'Active' else 'deactivated'} successfully",
         "staff": staff
     }
-
-

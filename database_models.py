@@ -12,12 +12,14 @@ class Staff(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
     phone = Column(String, unique=True, index=True, nullable=False)
+    guardian_contact_number = Column(String, nullable=True)
     address = Column(String, nullable=False)
     role = Column(String, default="staff")
     status = Column(String, default="Active", nullable=False)
     is_active = Column(Boolean, default=True)
     
     # KYC Details
+    kyc_status = Column(String, nullable=True)
     aadhaar_number = Column(String, nullable=True)
     aadhaar_front_image = Column(String, nullable=True)
     aadhaar_back_image = Column(String, nullable=True)
@@ -90,3 +92,20 @@ class Message(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     conversation = relationship("Conversation", backref="messages")
+
+class KYCSubmission(Base):
+    __tablename__ = "kyc_submissions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    staff_id = Column(Integer, ForeignKey("staff.id"), index=True, nullable=False)
+    aadhaar_front_image = Column(String, nullable=True)
+    aadhaar_back_image = Column(String, nullable=True)
+    status = Column(String, default="PENDING", nullable=False)
+    rejection_reason = Column(String, nullable=True)
+    reviewer_id = Column(Integer, ForeignKey("admins.id"), nullable=True)
+    submitted_at = Column(DateTime(timezone=True), server_default=func.now())
+    reviewed_at = Column(DateTime(timezone=True), nullable=True)
+
+    staff = relationship("Staff", backref="kyc_submissions")
+    reviewer = relationship("Admin")
+

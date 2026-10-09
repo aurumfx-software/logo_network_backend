@@ -28,6 +28,7 @@ def admin_update_staff_profile(
     name: Optional[str] = Form(None),
     email: Optional[str] = Form(None),
     phone: Optional[str] = Form(None),
+    guardian_contact_number: Optional[str] = Form(None),
     address: Optional[str] = Form(None),
     password: Optional[str] = Form(None),
     aadhaar_number: Optional[str] = Form(None),
@@ -53,7 +54,12 @@ def admin_update_staff_profile(
         staff.phone = phone
         
     if name is not None:
+        if any(char.islower() for char in name if char.isalpha()):
+            raise HTTPException(status_code=422, detail="Field Staff name must be entered in uppercase letters.")
         staff.name = name
+        
+    if guardian_contact_number is not None:
+        staff.guardian_contact_number = guardian_contact_number
         
     if address is not None:
         staff.address = address

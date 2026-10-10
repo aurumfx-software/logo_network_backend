@@ -5,6 +5,19 @@ from database_models import Admin
 from schemas.adminAuth import AdminLogin, AdminLoginResponse
 from utils.password import verify_password
 from utils.jwt import create_access_token
+from utils.password import hash_password
+from schemas.adminAuth import (
+    AdminForgotPasswordRequest,
+    AdminVerifyOTPRequest,
+    AdminResetPasswordRequest
+)
+from services.email_service import send_password_reset_otp
+from services.password_reset_service import (
+    create_password_reset_request,
+    verify_otp_and_create_token,
+    consume_reset_token
+)
+
 
 router = APIRouter(prefix="/admin-auth", tags=["Admin Authentication"])
 
@@ -30,4 +43,123 @@ def admin_login(login_data: AdminLogin, db: Session = Depends(get_db)):
         "access_token": access_token,
         "token_type": "bearer",
         "admin": admin
+    }
+
+
+@router.post("/forgot-password")
+def forgot_password(request: AdminForgotPasswordRequest, db: Session = Depends(get_db)):
+    admin = db.query(Admin).filter(Admin.email == request.email).first()
+    
+    # Generic response to prevent email enumeration
+    generic_response = {
+        "success": True,
+        "message": "If the account is eligible, password reset instructions will be sent to the registered email."
+    }
+    
+    if not admin or not admin.is_active:
+        return generic_response
+        
+    otp, reset_request_id = create_password_reset_request(db, admin.id)
+    
+    success, result = send_password_reset_otp(admin.email, otp)
+    if not success:
+        # We don't want to expose Resend errors to the client, just return the generic response
+        print(f"Failed to send OTP to {admin.email}: {result}")
+        
+    return generic_response
+
+@router.post("/verify-reset-otp")
+def verify_reset_otp(request: AdminVerifyOTPRequest, db: Session = Depends(get_db)):
+    admin = db.query(Admin).filter(Admin.email == request.email).first()
+    
+    if not admin or not admin.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid OTP or request identifier"
+        )
+        
+    reset_token = verify_otp_and_create_token(db, admin.id, request.reset_request_id, request.otp)
+    
+    if not reset_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired OTP, or maximum attempts exceeded"
+        )
+        
+    return {
+        "success": True,
+        "message": "OTP verified successfully",
+        "reset_token": reset_token,
+        "expires_in": 600
+    }
+
+@router.post("/reset-password")
+def reset_password(request: AdminResetPasswordRequest, db: Session = Depends(get_db)):
+    if request.new_password != request.confirm_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Passwords do not match"
+        )
+        
+    # Basic password strength check could go here if implemented elsewhere
+    if len(request.new_password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 8 characters long"
+        )
+        
+    # We need to find the admin by reset token, but our schema doesn't send the email in this step.
+    # We must scan or assume we can find the request by token hash.
+    # Let's adjust consume_reset_token to take the token and return the admin_id instead.
+    # Actually, the user requirement says "Verify the reset token hash, expiry, unused status and associated admin account."
+    # Since we need to update the password, we need the admin account.
+    # I'll query AdminPasswordResetRequest directly here to find the admin.
+    
+    from services.password_reset_service import hash_value
+    import datetime
+    
+    token_hash = hash_value(request.reset_token)
+    
+    reset_request = db.query(AdminPasswordResetRequest).filter(
+        AdminPasswordResetRequest.reset_token_hash == token_hash
+    ).with_for_update().first()
+    
+    if not reset_request or reset_request.reset_token_consumed:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token"
+        )
+        
+    # Check expiry
+    if datetime.datetime.now(datetime.timezone.utc) > (reset_request.reset_token_expiry.replace(tzinfo=datetime.timezone.utc) if reset_request.reset_token_expiry.tzinfo is None else reset_request.reset_token_expiry):
+        reset_request.reset_token_consumed = True
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Reset token has expired"
+        )
+        
+    admin = db.query(Admin).filter(Admin.id == reset_request.admin_id).first()
+    
+    if not admin or not admin.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Admin account not found or inactive"
+        )
+        
+    # Mark token as consumed and update password
+    reset_request.reset_token_consumed = True
+    
+    # Invalidate all other reset requests for this admin
+    db.query(AdminPasswordResetRequest).filter(
+        AdminPasswordResetRequest.admin_id == admin.id,
+        AdminPasswordResetRequest.id != reset_request.id
+    ).update({"reset_token_consumed": True, "otp_consumed": True})
+    
+    admin.password_hash = hash_password(request.new_password)
+    db.commit()
+    
+    return {
+        "success": True,
+        "message": "Password reset successfully"
     }

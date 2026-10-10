@@ -109,3 +109,23 @@ class KYCSubmission(Base):
     staff = relationship("Staff", backref="kyc_submissions")
     reviewer = relationship("Admin")
 
+class AdminPasswordResetRequest(Base):
+    __tablename__ = "admin_password_reset_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    admin_id = Column(Integer, ForeignKey("admins.id"), index=True, nullable=False)
+    reset_request_id = Column(String, unique=True, index=True, nullable=False)
+    
+    otp_hash = Column(String, nullable=False)
+    otp_expiry = Column(DateTime(timezone=True), nullable=False)
+    otp_attempts = Column(Integer, default=0, nullable=False)
+    otp_consumed = Column(Boolean, default=False, nullable=False)
+    
+    reset_token_hash = Column(String, nullable=True)
+    reset_token_expiry = Column(DateTime(timezone=True), nullable=True)
+    reset_token_consumed = Column(Boolean, default=False, nullable=False)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    admin = relationship("Admin")
+

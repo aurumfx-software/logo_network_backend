@@ -1,13 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from database import get_db
-from database_models import Admin
+from database_models import Admin, AdminPasswordResetRequest
 from schemas.adminAuth import AdminLogin, AdminLoginResponse
 from utils.password import verify_password
 from utils.jwt import create_access_token
 from utils.password import hash_password
 from schemas.adminAuth import (
-    AdminForgotPasswordRequest,
     AdminVerifyOTPRequest,
     AdminResetPasswordRequest
 )
@@ -47,38 +46,42 @@ def admin_login(login_data: AdminLogin, db: Session = Depends(get_db)):
 
 
 @router.post("/forgot-password")
-def forgot_password(request: AdminForgotPasswordRequest, db: Session = Depends(get_db)):
-    admin = db.query(Admin).filter(Admin.email == request.email).first()
+def forgot_password(db: Session = Depends(get_db)):
+    admin = db.query(Admin).filter(Admin.is_active == True).first()
+    
+    import uuid
+    # Always generate a fake request ID first to use if the admin doesn't exist
+    fake_reset_request_id = str(uuid.uuid4())
     
     # Generic response to prevent email enumeration
     generic_response = {
         "success": True,
-        "message": "If the account is eligible, password reset instructions will be sent to the registered email."
+        "message": "If an active admin account exists, password reset instructions will be sent to the registered email.",
+        "reset_request_id": fake_reset_request_id
     }
     
-    if not admin or not admin.is_active:
+    if not admin:
+        print("[Admin Auth] Forgot password requested but no active admin found. Returning fake ID.")
         return generic_response
         
-    otp, reset_request_id = create_password_reset_request(db, admin.id)
+    otp, real_reset_request_id = create_password_reset_request(db, admin.id)
     
+    # Update response with the real ID since the account is valid
+    generic_response["reset_request_id"] = real_reset_request_id
+    
+    print(f"[Admin Auth] Initiating password reset for valid admin: {admin.email}")
     success, result = send_password_reset_otp(admin.email, otp)
     if not success:
         # We don't want to expose Resend errors to the client, just return the generic response
-        print(f"Failed to send OTP to {admin.email}: {result}")
+        print(f"[Admin Auth] FAILED to send OTP email to {admin.email}: {result}")
+    else:
+        print(f"[Admin Auth] OTP email successfully sent to {admin.email}")
         
     return generic_response
 
 @router.post("/verify-reset-otp")
 def verify_reset_otp(request: AdminVerifyOTPRequest, db: Session = Depends(get_db)):
-    admin = db.query(Admin).filter(Admin.email == request.email).first()
-    
-    if not admin or not admin.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid OTP or request identifier"
-        )
-        
-    reset_token = verify_otp_and_create_token(db, admin.id, request.reset_request_id, request.otp)
+    reset_token = verify_otp_and_create_token(db, request.reset_request_id, request.otp)
     
     if not reset_token:
         raise HTTPException(
@@ -131,7 +134,11 @@ def reset_password(request: AdminResetPasswordRequest, db: Session = Depends(get
         )
         
     # Check expiry
-    if datetime.datetime.now(datetime.timezone.utc) > (reset_request.reset_token_expiry.replace(tzinfo=datetime.timezone.utc) if reset_request.reset_token_expiry.tzinfo is None else reset_request.reset_token_expiry):
+    token_expiry = reset_request.reset_token_expiry
+    if token_expiry.tzinfo is None:
+        token_expiry = token_expiry.replace(tzinfo=datetime.timezone.utc)
+        
+    if datetime.datetime.now(datetime.timezone.utc) > token_expiry:
         reset_request.reset_token_consumed = True
         db.commit()
         raise HTTPException(

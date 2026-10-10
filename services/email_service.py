@@ -2,10 +2,31 @@ import os
 import resend
 from dotenv import load_dotenv
 
+# load_dotenv()
+
+# resend.api_key = os.getenv("RESEND_API_KEY")
+# from_email = os.getenv("RESEND_FROM_EMAIL", "noreply@backend.aurumfx.org")
+
+
+
 load_dotenv()
 
-resend.api_key = os.getenv("RESEND_API_KEY")
-from_email = os.getenv("RESEND_FROM_EMAIL", "noreply@backend.aurumfx.org")
+resend_api_key = os.getenv("RESEND_API_KEY")
+from_email = os.getenv("RESEND_FROM_EMAIL")
+
+if not resend_api_key:
+    print("[Email Service] ERROR: RESEND_API_KEY is missing.")
+else:
+    resend.api_key = resend_api_key
+
+if not from_email:
+    print("[Email Service] ERROR: RESEND_FROM_EMAIL is missing.")
+
+
+
+
+
+
 
 def send_password_reset_otp(to_email: str, otp: str, expiry_minutes: int = 5):
     """
@@ -36,7 +57,9 @@ def send_password_reset_otp(to_email: str, otp: str, expiry_minutes: int = 5):
         }
         
         email = resend.Emails.send(params)
+        print(f"[Email Service] Resend successfully accepted the OTP email request for {to_email}. Response: {email}")
         return True, email
     except Exception as e:
-        print(f"Error sending email via Resend: {str(e)}")
+        print(f"[Email Service] CRITICAL ERROR sending email via Resend to {to_email}: {str(e)}")
+        # If it's a resend-specific error, the exception string usually contains the API response
         return False, str(e)

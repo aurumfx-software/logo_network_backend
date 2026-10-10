@@ -45,30 +45,37 @@ def create_password_reset_request(db: Session, admin_id: int) -> tuple[str, str,
     
     return otp, reset_request_id
 
-def verify_otp_and_create_token(db: Session, admin_id: int, reset_request_id: str, otp: str) -> str | None:
+def verify_otp_and_create_token(db: Session, reset_request_id: str, otp: str) -> str | None:
     """
     Verifies the OTP and returns a reset token if successful.
     Returns None if validation fails.
     """
     reset_request = db.query(AdminPasswordResetRequest).filter(
-        AdminPasswordResetRequest.reset_request_id == reset_request_id,
-        AdminPasswordResetRequest.admin_id == admin_id
+        AdminPasswordResetRequest.reset_request_id == reset_request_id
     ).with_for_update().first() # Lock the row to prevent race conditions
     
     if not reset_request:
+        print(f"[Password Reset] Verification failed: reset_request_id {reset_request_id} not found")
         return None
         
     if reset_request.otp_consumed:
+        print(f"[Password Reset] Verification failed: OTP already consumed for reset_request_id {reset_request_id}")
         return None
         
-    # Check expiry
-    if datetime.now(timezone.utc) > reset_request.otp_expiry.replace(tzinfo=timezone.utc) if reset_request.otp_expiry.tzinfo is None else reset_request.otp_expiry:
+    # Check expiry properly
+    otp_expiry = reset_request.otp_expiry
+    if otp_expiry.tzinfo is None:
+        otp_expiry = otp_expiry.replace(tzinfo=timezone.utc)
+        
+    if datetime.now(timezone.utc) > otp_expiry:
+        print(f"[Password Reset] Verification failed: OTP expired for reset_request_id {reset_request_id}")
         reset_request.otp_consumed = True
         db.commit()
         return None
         
     # Check attempts
     if reset_request.otp_attempts >= 5:
+        print(f"[Password Reset] Verification failed: Maximum attempts exceeded for reset_request_id {reset_request_id}")
         reset_request.otp_consumed = True
         db.commit()
         return None
@@ -78,10 +85,15 @@ def verify_otp_and_create_token(db: Session, admin_id: int, reset_request_id: st
     
     # Verify hash
     if reset_request.otp_hash != hash_value(otp):
+        print(f"[Password Reset] Verification failed: Invalid OTP hash for reset_request_id {reset_request_id}")
+        # If it reached 5 attempts after this increment, mark consumed
+        if reset_request.otp_attempts >= 5:
+            reset_request.otp_consumed = True
         db.commit()
         return None
         
     # Valid OTP
+    print(f"[Password Reset] OTP successfully verified for reset_request_id {reset_request_id}")
     reset_request.otp_consumed = True
     
     # Generate reset token
@@ -110,8 +122,13 @@ def consume_reset_token(db: Session, admin_id: int, reset_token: str) -> bool:
     if reset_request.reset_token_consumed:
         return False
         
-    # Check expiry
-    if datetime.now(timezone.utc) > reset_request.reset_token_expiry.replace(tzinfo=timezone.utc) if reset_request.reset_token_expiry.tzinfo is None else reset_request.reset_token_expiry:
+    # Check expiry properly
+    token_expiry = reset_request.reset_token_expiry
+    if token_expiry.tzinfo is None:
+        token_expiry = token_expiry.replace(tzinfo=timezone.utc)
+        
+    if datetime.now(timezone.utc) > token_expiry:
+        print(f"[Password Reset] Token consumption failed: Token expired for reset_request_id {reset_request.reset_request_id}")
         reset_request.reset_token_consumed = True
         db.commit()
         return False

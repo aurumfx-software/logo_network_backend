@@ -26,11 +26,7 @@ class AdminProfileUpdateRequest(BaseModel):
     new_password: Optional[str] = None
     confirm_password: Optional[str] = None
 
-class AdminForgotPasswordRequest(BaseModel):
-    email: EmailStr
-
 class AdminVerifyOTPRequest(BaseModel):
-    email: EmailStr
     otp: str
     reset_request_id: str
 
